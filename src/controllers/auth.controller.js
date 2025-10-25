@@ -1,0 +1,183 @@
+const databaseService = require('../services/database.service');
+const { validateEmail, extractNameFromEmail } = require('../utils/validators');
+
+/**
+ * Authentication Controller
+ * Handles user authentication and session management
+ */
+class AuthController {
+  /**
+   * Login user
+   * @route POST /api/auth/login
+   */
+  async login(req, res) {
+    try {
+      const { email, password } = req.body;
+
+      if (!email || !password) {
+        return res.status(400).json({ error: 'Email și parola sunt obligatorii' });
+      }
+
+      if (!validateEmail(email)) {
+        return res.status(400).json({
+          error: 'Email-ul trebuie să fie @devhub.tech, @titans.net sau @solidstake.com'
+        });
+      }
+
+      const user = await databaseService.getUserByEmail(email);
+      if (!user) {
+        return res.status(401).json({ error: 'Credențiale invalide' });
+      }
+
+      if (!databaseService.verifyPassword(password, user.password)) {
+        return res.status(401).json({ error: 'Credențiale invalide' });
+      }
+
+      // Auto-match employee name if not set
+      let employeeName = user.employee_name;
+      if (!employeeName && !user.is_admin) {
+        const matchedEmployee = await databaseService.findMatchingEmployee(email);
+        if (matchedEmployee) {
+          await databaseService.updateUserEmployeeName(user.id, matchedEmployee);
+          employeeName = matchedEmployee;
+          console.log(`Auto-matched ${email} to employee: ${matchedEmployee}`);
+        }
+      }
+
+      // Set session - convert is_admin to boolean
+      req.session.user = {
+        id: user.id,
+        email: user.email,
+        is_admin: Boolean(user.is_admin),
+        employee_name: employeeName
+      };
+
+      console.log('✓ User logged in:', {
+        email: user.email,
+        is_admin: Boolean(user.is_admin),
+        session_id: req.sessionID
+      });
+
+      res.json({
+        success: true,
+        user: {
+          email: user.email,
+          is_admin: Boolean(user.is_admin),
+          employee_name: employeeName
+        }
+      });
+    } catch (error) {
+      console.error('Login error:', error);
+      res.status(500).json({ error: 'Server error' });
+    }
+  }
+
+  /**
+   * Register new user
+   * @route POST /api/auth/register
+   */
+  async register(req, res) {
+    try {
+      const { email, password } = req.body;
+
+      if (!email || !password) {
+        return res.status(400).json({ error: 'Email și parola sunt obligatorii' });
+      }
+
+      if (!validateEmail(email)) {
+        return res.status(400).json({
+          error: 'Email-ul trebuie să fie @devhub.tech, @titans.net sau @solidstake.com'
+        });
+      }
+
+      if (password.length < 6) {
+        return res.status(400).json({ error: 'Parola trebuie să aibă minimum 6 caractere' });
+      }
+
+      // Extract expected employee name from email
+      const expectedEmployeeName = extractNameFromEmail(email);
+
+      // Check for inactive user with matching employee name
+      const allUsers = await databaseService.getAllUsers();
+      const inactiveUser = allUsers.find(u =>
+        u.is_active === 0 &&
+        u.employee_name &&
+        u.employee_name.toLowerCase() === expectedEmployeeName.toLowerCase()
+      );
+
+      if (inactiveUser) {
+        await databaseService.activateUser(inactiveUser.email, password);
+
+        // Update email if different
+        if (inactiveUser.email !== email.toLowerCase().trim()) {
+          await databaseService.db.run(
+            'UPDATE users SET email = ? WHERE id = ?',
+            [email.toLowerCase().trim(), inactiveUser.id]
+          );
+        }
+
+        console.log(`Activated inactive user: ${inactiveUser.employee_name} with email ${email}`);
+        res.json({ success: true, message: 'Cont activat cu succes! Te poți autentifica acum.' });
+      } else {
+        // Create new user
+        await databaseService.createUser(email, password, 0);
+
+        // Try to auto-match employee name
+        const matchedEmployee = await databaseService.findMatchingEmployee(email);
+        if (matchedEmployee) {
+          const newUser = await databaseService.getUserByEmail(email);
+          if (newUser) {
+            await databaseService.updateUserEmployeeName(newUser.id, matchedEmployee);
+            console.log(`Auto-matched new user ${email} to employee: ${matchedEmployee}`);
+          }
+        }
+
+        res.json({ success: true, message: 'Cont creat cu succes! Te poți autentifica acum.' });
+      }
+    } catch (error) {
+      console.error('Register error:', error);
+      if (error.message && error.message.includes('Invalid email domain')) {
+        res.status(400).json({ error: error.message });
+      } else {
+        res.status(400).json({ error: 'Email-ul există deja' });
+      }
+    }
+  }
+
+  /**
+   * Logout user
+   * @route POST /api/auth/logout
+   */
+  async logout(req, res) {
+    req.session.destroy((err) => {
+      if (err) {
+        console.error('Logout error:', err);
+        return res.status(500).json({ error: 'Server error' });
+      }
+      res.json({ success: true });
+    });
+  }
+
+  /**
+   * Get current user
+   * @route GET /api/auth/me
+   */
+  async me(req, res) {
+    try {
+      const user = await databaseService.getUserById(req.session.user.id);
+      res.json({
+        user: {
+          id: user.id,
+          email: user.email,
+          is_admin: user.is_admin,
+          employee_name: user.employee_name
+        }
+      });
+    } catch (error) {
+      console.error('Get user error:', error);
+      res.status(500).json({ error: 'Server error' });
+    }
+  }
+}
+
+module.exports = new AuthController();
