@@ -8,7 +8,7 @@ class EmailService {
     const emailPort = parseInt(process.env.EMAIL_PORT || '587');
 
     this.transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_HOST || 'dobby.devhub.tech',
+      host: process.env.EMAIL_HOST || 'mail.dobby.devhub.tech',
       port: emailPort,
       secure: emailPort === 465, // true for 465 (SSL/TLS), false for 587 (will use STARTTLS)
       auth: {

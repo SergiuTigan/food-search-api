@@ -11,7 +11,7 @@ console.log('Secure:', emailPort === 465);
 console.log('STARTTLS:', emailPort === 587);
 
 const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST || 'dobby.devhub.tech',
+  host: process.env.EMAIL_HOST || 'mail.dobby.devhub.tech',
   port: emailPort,
   secure: emailPort === 465,
   auth: {
