@@ -183,7 +183,7 @@ class DatabaseService {
    */
   async _createDefaultAdmin() {
     const adminEmail = 'sergiu.tigan@devhub.tech';
-    const adminPassword = 'marian93A@';
+    const adminPassword = 'asd123ASD';
 
     const existingAdmin = await this.db.get(
       'SELECT * FROM users WHERE email = ?',
