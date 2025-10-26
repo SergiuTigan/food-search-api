@@ -29,11 +29,14 @@ async function initializeApp() {
     // Initialize database
     await databaseService.initialize();
 
-    // Test email configuration
-    const emailConfigured = await emailService.testConfig();
-    if (!emailConfigured) {
-      console.log('⚠ Email service not configured - configure EMAIL_USER and EMAIL_PASSWORD in .env to enable emails');
-    }
+    // Test email configuration (non-blocking - don't wait for it)
+    emailService.testConfig().then(emailConfigured => {
+      if (!emailConfigured) {
+        console.log('⚠ Email service not configured - email features will not work');
+      }
+    }).catch(err => {
+      console.log('⚠ Email configuration test failed:', err.message);
+    });
 
     console.log('✓ Application initialized successfully');
   } catch (error) {

@@ -31,7 +31,7 @@ class EmailService {
     }
 
     try {
-      // Add a 5-second timeout to prevent hanging
+      // Add 5 second timeout to prevent hanging
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Connection timeout')), 5000)
       );
