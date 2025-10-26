@@ -229,6 +229,199 @@ Cu respect,
 Echipa Food Search
     `.trim();
   }
+
+  /**
+   * Send user invitation email
+   * @param {string} email - User email
+   * @param {string} invitationToken - Invitation token
+   * @param {boolean} isAdmin - Whether user will be admin
+   * @param {string} invitedByEmail - Email of person who sent invitation
+   * @returns {Promise<Object>} Result object
+   */
+  async sendInvitationEmail(email, invitationToken, isAdmin, invitedByEmail) {
+    if (!this.isConfigured()) {
+      console.log('⚠ Email not configured - skipping invitation email');
+      return { success: false, error: 'Email not configured' };
+    }
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:4200';
+    const invitationUrl = `${frontendUrl}/accept-invitation?token=${invitationToken}`;
+    const roleText = isAdmin ? 'Administrator' : 'User';
+
+    try {
+      const mailOptions = {
+        from: this.fromAddress,
+        to: email,
+        subject: `🎉 You've been invited to Dobby - Food Ordering System`,
+        html: this._buildInvitationTemplate(email, invitationUrl, roleText, invitedByEmail),
+        text: this._buildInvitationTextTemplate(email, invitationUrl, roleText, invitedByEmail)
+      };
+
+      await this.transporter.sendMail(mailOptions);
+      console.log('✓ Invitation email sent to:', email);
+      return { success: true };
+    } catch (error) {
+      console.error('✗ Failed to send invitation email:', error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Build invitation HTML email template
+   * @private
+   */
+  _buildInvitationTemplate(email, invitationUrl, roleText, invitedByEmail) {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+          }
+          .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+            border-radius: 10px 10px 0 0;
+          }
+          .content {
+            background: #f9fafb;
+            padding: 30px;
+            border-radius: 0 0 10px 10px;
+          }
+          .button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 14px 40px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            margin: 20px 0;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+          }
+          .info-box {
+            background: white;
+            padding: 20px;
+            border-left: 4px solid #667eea;
+            margin: 20px 0;
+            border-radius: 4px;
+          }
+          .role-badge {
+            display: inline-block;
+            background: #10b981;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: bold;
+          }
+          .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+            font-size: 12px;
+            color: #6b7280;
+          }
+          .warning {
+            background: #fef3c7;
+            padding: 15px;
+            border-left: 4px solid #f59e0b;
+            margin: 20px 0;
+            border-radius: 4px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>🎉 Welcome to Dobby!</h1>
+          <p style="margin: 0; opacity: 0.9;">Food Ordering Made Simple</p>
+        </div>
+        <div class="content">
+          <h2>Hello!</h2>
+          <p><strong>${invitedByEmail}</strong> has invited you to join the Dobby food ordering system.</p>
+
+          <div class="info-box">
+            <p style="margin: 0;"><strong>📧 Your Email:</strong> ${email}</p>
+            <p style="margin: 10px 0 0 0;"><strong>🔑 Account Type:</strong> <span class="role-badge">${roleText}</span></p>
+          </div>
+
+          <p>Click the button below to accept your invitation and set up your account password:</p>
+
+          <center>
+            <a href="${invitationUrl}" class="button">Accept Invitation & Set Password</a>
+          </center>
+
+          <div class="warning">
+            <p style="margin: 0;"><strong>⏰ Important:</strong> This invitation link will expire in 48 hours. Make sure to complete your registration soon!</p>
+          </div>
+
+          <p>Once you've set your password, you'll be able to:</p>
+          <ul>
+            <li>🍽️ Browse and select meals for the week</li>
+            <li>⭐ Rate and review meals</li>
+            <li>📊 View your meal history</li>
+            <li>🔍 Search for colleague selections</li>
+            ${isAdmin ? '<li>👑 Manage meal options and users (Admin)</li>' : ''}
+          </ul>
+
+          <p style="margin-top: 30px;">
+            If you have any questions, feel free to reply to this email.<br><br>
+            Looking forward to having you on board!<br>
+            <strong>The Dobby Team</strong>
+          </p>
+        </div>
+        <div class="footer">
+          <p>This is an automated invitation email. If you didn't expect this invitation, you can safely ignore it.</p>
+          <p>The invitation link will expire automatically.</p>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
+  /**
+   * Build invitation plain text email template
+   * @private
+   */
+  _buildInvitationTextTemplate(email, invitationUrl, roleText, invitedByEmail) {
+    return `
+Hello!
+
+${invitedByEmail} has invited you to join the Dobby food ordering system.
+
+Your Email: ${email}
+Account Type: ${roleText}
+
+Accept your invitation and set up your password by visiting:
+${invitationUrl}
+
+IMPORTANT: This invitation link will expire in 48 hours.
+
+Once you've set your password, you'll be able to:
+- Browse and select meals for the week
+- Rate and review meals
+- View your meal history
+- Search for colleague selections
+${isAdmin ? '- Manage meal options and users (Admin privileges)' : ''}
+
+If you have any questions, feel free to reply to this email.
+
+Looking forward to having you on board!
+The Dobby Team
+
+---
+This is an automated invitation email. If you didn't expect this invitation, you can safely ignore it.
+    `.trim();
+  }
 }
 
 // Export singleton instance

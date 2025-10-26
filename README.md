@@ -4,13 +4,18 @@ A comprehensive RESTful API for employee meal selection and management system. T
 
 ## Features
 
-- **Authentication & Authorization**: Secure session-based authentication with role-based access control
+- **Authentication & Authorization**: JWT-based stateless authentication with session fallback and role-based access control
 - **Meal Options Management**: Admin can upload weekly meal options via Excel files
 - **Meal Selection**: Employees can select their preferred meals for each week
+- **Lock/Unlock System**: Users can lock their selections; admins can lock weeks
+- **Unlock Request System**: Users can request unlock with admin approval workflow
+- **Week Management**: Auto-lock weeks 2 days before start date
+- **Individual Access Control**: Grant specific users unlock access in locked weeks
 - **Review System**: Rate and review meals with a 5-star rating system
 - **Search Functionality**: Search for colleagues' meal selections
 - **Admin Dashboard**: Statistics, exports, and data management
 - **Email Notifications**: Automated email notifications when new meal options are available
+- **Feedback System**: Users can submit feedback directly to administrators
 - **Comprehensive API Documentation**: Interactive Swagger/OpenAPI documentation
 
 ## Tech Stack
@@ -18,9 +23,9 @@ A comprehensive RESTful API for employee meal selection and management system. T
 - **Runtime**: Node.js (>= 18.x)
 - **Framework**: Express.js
 - **Database**: SQLite3
-- **Authentication**: Express Session with bcrypt
+- **Authentication**: JWT (jsonwebtoken) + Express Session (fallback) with bcrypt
 - **File Upload**: Multer
-- **Excel Processing**: xlsx
+- **Excel Processing**: xlsx, ExcelJS
 - **Email**: Nodemailer
 - **API Documentation**: Swagger UI Express & swagger-jsdoc
 
@@ -97,6 +102,10 @@ food-search-api/
    EMAIL_FROM=Food Search <noreply@devhub.tech>
    APP_URL=http://localhost:3000
 
+   # JWT Configuration
+   JWT_SECRET=your-secret-key-change-in-production
+   JWT_EXPIRES_IN=7d
+
    # Allowed Email Domains
    ALLOWED_EMAIL_DOMAINS=@devhub.tech,@titans.net,@solidstake.com
    ```
@@ -115,14 +124,85 @@ food-search-api/
    - Documentation: http://localhost:3000/api-docs
    - Health Check: http://localhost:3000/health
 
-## Default Admin Credentials
+## Admin Setup
 
-The system automatically creates a default admin user on first run:
+### 🔐 Security Notice
 
-- **Email**: `sergiu.tigan@devhub.tech`
-- **Password**: `marian93A@`
+For maximum security, this application uses an **invitation-based admin system**. Admins invite users via email, and users set their own secure passwords.
 
-**Important**: Change these credentials after first login in production!
+### Setting Up the First Admin
+
+You have two options for creating the first admin account:
+
+#### Option 1: Invitation System (Recommended)
+
+This is the most secure method but requires manual database access for the first admin:
+
+1. **Create the first admin manually** (one-time setup):
+   ```bash
+   # Connect to SQLite database
+   sqlite3 food-search.db
+
+   # Insert first admin with a temporary password
+   INSERT INTO users (email, password, is_admin)
+   VALUES ('your-email@devhub.tech',
+           '$2b$10$placeholder',
+           1);
+   ```
+
+2. **Send an invitation to yourself**:
+   - After the first admin is created, use the invitation system for all other users
+
+#### Option 2: Environment Variables (Quick Start)
+
+For development or quick setup:
+
+1. **Generate a secure password**:
+   ```bash
+   npm run generate-password
+   ```
+
+2. **Add to `.env` file**:
+   ```env
+   ADMIN_EMAIL=sergiu.tigan@devhub.tech
+   ADMIN_PASSWORD=your-generated-secure-password
+   ```
+
+3. **Start the server** - admin account is created automatically
+
+### Inviting New Users
+
+Once you have an admin account, invite new users (including other admins):
+
+1. **Send Invitation** (Admin only):
+   ```bash
+   POST /api/invitations/send
+   {
+     "email": "user@devhub.tech",
+     "is_admin": false
+   }
+   ```
+
+2. **User receives email** with invitation link (valid for 48 hours)
+
+3. **User accepts invitation** and sets their own password:
+   - Clicks link in email
+   - Sets secure password
+   - Account is created automatically
+
+### Password Requirements
+
+All passwords must meet the following security requirements:
+- Minimum 8 characters (12+ recommended)
+- At least one uppercase letter (A-Z)
+- At least one lowercase letter (a-z)
+- At least one number (0-9)
+- At least one special character (!@#$%^&*, etc.)
+- No common password patterns (password, admin, 123456, etc.)
+- No sequential characters (abc, 123, etc.)
+- No repeated characters (aaa, 111, etc.)
+
+**Important**: Never commit your `.env` file with real passwords to version control!
 
 ## API Documentation
 
@@ -157,6 +237,11 @@ Visit http://localhost:3000/api-docs for the complete interactive Swagger UI doc
 - `POST /api/meal-selections` - Save meal selection
 - `GET /api/meal-selections/me` - Get current user's selection
 - `GET /api/meal-selections/history` - Get user's selection history
+- `POST /api/meal-selections/lock` - Lock user's own selection
+- `POST /api/meal-selections/unlock` - Request unlock for user's selection
+- `GET /api/meal-selections/unlock-requests` - Get pending unlock requests (Admin)
+- `POST /api/meal-selections/unlock-requests/:id/approve` - Approve unlock request (Admin)
+- `POST /api/meal-selections/unlock-requests/:id/reject` - Reject unlock request (Admin)
 - `GET /api/meal-selections/all` - Get all selections (Admin)
 - `POST /api/meal-selections/import` - Import selections from Excel (Admin)
 - `GET /api/meal-selections/statistics` - Get statistics (Admin)
@@ -169,6 +254,17 @@ Visit http://localhost:3000/api-docs for the complete interactive Swagger UI doc
 - `GET /api/reviews/my-review` - Get current user's review for a meal
 - `GET /api/reviews/my-reviews` - Get all reviews by current user
 - `GET /api/reviews/recent` - Get recent reviews for a meal
+- `GET /api/reviews/prioritized` - Get prioritized reviews (user's reviews first)
+
+#### Feedback (`/api/feedback`)
+- `POST /api/feedback` - Submit feedback to administrators
+
+#### Invitations (`/api/invitations`)
+- `POST /api/invitations/send` - Send user invitation (Admin)
+- `GET /api/invitations/validate/:token` - Validate invitation token
+- `POST /api/invitations/accept` - Accept invitation and create account
+- `GET /api/invitations/pending` - Get pending invitations (Admin)
+- `DELETE /api/invitations/:id` - Cancel invitation (Admin)
 
 #### Search (`/api/search`)
 - `GET /api/search/weeks` - Get available weeks
@@ -178,6 +274,11 @@ Visit http://localhost:3000/api-docs for the complete interactive Swagger UI doc
 #### Admin (`/api/admin`)
 - `GET /api/admin/weeks` - Get all available weeks
 - `DELETE /api/admin/weeks/:weekStartDate` - Delete week data
+- `POST /api/admin/weeks/:weekStartDate/lock` - Lock a week (prevent all modifications)
+- `POST /api/admin/weeks/:weekStartDate/unlock` - Unlock a week
+- `GET /api/admin/weeks/:weekStartDate/settings` - Get week settings (lock status, unlocked users)
+- `POST /api/admin/weeks/:weekStartDate/grant-access` - Grant individual user unlock access
+- `POST /api/admin/weeks/:weekStartDate/revoke-access` - Revoke user unlock access
 
 ## Authentication
 
@@ -334,14 +435,31 @@ The application uses SQLite with the following main tables:
 
 ## Security Features
 
-- Password hashing with bcrypt
-- Session-based authentication
-- HTTP-only cookies
-- CSRF protection via SameSite cookies
-- Email domain validation
-- File upload restrictions (Excel files only, 10MB max)
-- Duplicate upload prevention
-- Role-based access control (Admin/User)
+- **Password Security**:
+  - Bcrypt hashing with salt rounds
+  - Strong password validation (uppercase, lowercase, numbers, symbols)
+  - No hardcoded passwords in source code
+  - Environment-based password configuration
+  - Password strength scoring
+  - Secure password generation utility
+- **Authentication**:
+  - JWT-based stateless authentication (primary)
+  - Session-based authentication (fallback)
+  - HTTP-only cookies
+  - CSRF protection via SameSite cookies
+  - Token expiration and refresh
+- **Authorization**:
+  - Role-based access control (Admin/User)
+  - Email domain validation
+  - Individual user access grants for locked weeks
+- **File Security**:
+  - File upload restrictions (Excel files only, 10MB max)
+  - Duplicate upload prevention
+  - File hash validation
+- **Data Protection**:
+  - All passwords hashed before storage
+  - No plain text password transmission over HTTPS
+  - Sensitive data excluded from logs
 
 ## Development
 
@@ -353,6 +471,12 @@ npm run dev
 
 # Start production server
 npm start
+
+# Generate secure password for admin account
+npm run generate-password
+
+# Generate password with specific length
+npm run generate-password -- 20
 
 # Run tests (to be implemented)
 npm test
@@ -412,6 +536,11 @@ HTTP Status Codes:
 | `EMAIL_PASSWORD` | SMTP password | - |
 | `EMAIL_FROM` | Email sender address | `Food Search <noreply@devhub.tech>` |
 | `APP_URL` | Application URL for emails | `http://localhost:3000` |
+| `JWT_SECRET` | JWT token signing secret | `your-secure-jwt-secret-change-in-production` |
+| `JWT_EXPIRES_IN` | JWT token expiration time | `7d` |
+| `ADMIN_EMAIL` | Default admin account email (optional) | `sergiu.tigan@devhub.tech` |
+| `ADMIN_PASSWORD` | Default admin account password (optional) | - |
+| `FRONTEND_URL` | Frontend application URL for invitation links | `http://localhost:4200` |
 | `ALLOWED_EMAIL_DOMAINS` | Comma-separated allowed domains | `@devhub.tech,@titans.net,@solidstake.com` |
 | `CORS_ORIGIN` | CORS allowed origin | `http://localhost:3000` |
 

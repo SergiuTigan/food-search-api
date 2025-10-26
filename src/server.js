@@ -16,6 +16,7 @@ const mealSelectionsRoutes = require('./routes/mealSelections.routes');
 const reviewsRoutes = require('./routes/reviews.routes');
 const searchRoutes = require('./routes/search.routes');
 const adminRoutes = require('./routes/admin.routes');
+const invitationsRoutes = require('./routes/invitations.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -127,7 +128,9 @@ app.get('/', (req, res) => {
       mealSelections: '/api/meal-selections',
       reviews: '/api/reviews',
       search: '/api/search',
-      admin: '/api/admin'
+      admin: '/api/admin',
+      invitations: '/api/invitations',
+      feedback: '/api/feedback'
     }
   });
 });
@@ -142,6 +145,7 @@ app.use('/api/meal-selections', mealSelectionsRoutes);
 app.use('/api/reviews', reviewsRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/invitations', invitationsRoutes);
 app.use('/api/feedback', require('./routes/feedback.routes'));
 
 /**

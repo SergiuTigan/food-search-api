@@ -175,6 +175,34 @@ class DatabaseService {
         console.error('Error creating unique index:', error);
       }
     }
+
+    // User invitations table
+    await this.db.run(`
+      CREATE TABLE IF NOT EXISTS user_invitations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT NOT NULL,
+        invitation_token TEXT UNIQUE NOT NULL,
+        is_admin INTEGER DEFAULT 0,
+        invited_by INTEGER,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        expires_at TIMESTAMP NOT NULL,
+        used_at TIMESTAMP,
+        status TEXT DEFAULT 'pending',
+        FOREIGN KEY (invited_by) REFERENCES users(id)
+      )
+    `);
+
+    // Create index on token for fast lookup
+    try {
+      await this.db.run(`
+        CREATE INDEX IF NOT EXISTS idx_invitation_token
+        ON user_invitations(invitation_token)
+      `);
+    } catch (error) {
+      if (!error.message || !error.message.includes('already exists')) {
+        console.error('Error creating invitation token index:', error);
+      }
+    }
   }
 
   /**
@@ -182,21 +210,37 @@ class DatabaseService {
    * @private
    */
   async _createDefaultAdmin() {
-    const adminEmail = 'sergiu.tigan@devhub.tech';
-    const adminPassword = 'asd123ASD';
+    const adminEmail = process.env.ADMIN_EMAIL || 'sergiu.tigan@devhub.tech';
+    const adminPassword = process.env.ADMIN_PASSWORD;
 
+    // Check if admin already exists
     const existingAdmin = await this.db.get(
       'SELECT * FROM users WHERE email = ?',
       [adminEmail]
     );
 
     if (!existingAdmin) {
+      // Only create admin if password is provided in environment
+      if (!adminPassword) {
+        console.warn('⚠️  ADMIN_PASSWORD not set in environment variables.');
+        console.warn('⚠️  Please set ADMIN_PASSWORD in .env to create default admin user.');
+        console.warn('⚠️  You can create admin users manually or via registration.');
+        return;
+      }
+
+      // Validate password strength
+      if (adminPassword.length < 8) {
+        console.error('❌ ADMIN_PASSWORD must be at least 8 characters long');
+        return;
+      }
+
       const hashedPassword = bcrypt.hashSync(adminPassword, 10);
       await this.db.run(
         'INSERT INTO users (email, password, is_admin) VALUES (?, ?, ?)',
         [adminEmail, hashedPassword, 1]
       );
       console.log(`✓ Default admin user created (email: ${adminEmail})`);
+      console.log('⚠️  Please change the admin password after first login!');
     }
   }
 
@@ -1125,6 +1169,123 @@ class DatabaseService {
       [userId, weekStartDate]
     );
     return result ? result.is_locked === 1 : false;
+  }
+
+  // ===== USER INVITATION OPERATIONS =====
+
+  /**
+   * Create user invitation
+   * @param {string} email - User email to invite
+   * @param {boolean} isAdmin - Whether user should be admin
+   * @param {number} invitedBy - ID of user creating the invitation
+   * @param {string} token - Invitation token
+   * @param {number} expiresInHours - Token expiration in hours (default: 48)
+   * @returns {Promise<object>} Created invitation
+   */
+  async createInvitation(email, isAdmin, invitedBy, token, expiresInHours = 48) {
+    const emailLower = email.toLowerCase().trim();
+    const expiresAt = new Date(Date.now() + expiresInHours * 60 * 60 * 1000).toISOString();
+
+    const result = await this.db.run(
+      `INSERT INTO user_invitations (email, invitation_token, is_admin, invited_by, expires_at)
+       VALUES (?, ?, ?, ?, ?)`,
+      [emailLower, token, isAdmin ? 1 : 0, invitedBy, expiresAt]
+    );
+
+    return {
+      id: result.lastID,
+      email: emailLower,
+      invitation_token: token,
+      is_admin: isAdmin ? 1 : 0,
+      invited_by: invitedBy,
+      expires_at: expiresAt
+    };
+  }
+
+  /**
+   * Get invitation by token
+   * @param {string} token - Invitation token
+   * @returns {Promise<object|null>} Invitation details
+   */
+  async getInvitationByToken(token) {
+    return await this.db.get(
+      'SELECT * FROM user_invitations WHERE invitation_token = ?',
+      [token]
+    );
+  }
+
+  /**
+   * Validate invitation token
+   * @param {string} token - Invitation token
+   * @returns {Promise<object>} Validation result with invitation details
+   */
+  async validateInvitation(token) {
+    const invitation = await this.getInvitationByToken(token);
+
+    if (!invitation) {
+      return { valid: false, error: 'Invalid invitation token' };
+    }
+
+    if (invitation.status !== 'pending') {
+      return { valid: false, error: 'Invitation has already been used' };
+    }
+
+    const now = new Date();
+    const expiresAt = new Date(invitation.expires_at);
+
+    if (now > expiresAt) {
+      return { valid: false, error: 'Invitation has expired' };
+    }
+
+    // Check if user already exists
+    const existingUser = await this.getUserByEmail(invitation.email);
+    if (existingUser && existingUser.is_active === 1) {
+      return { valid: false, error: 'User account already exists' };
+    }
+
+    return { valid: true, invitation };
+  }
+
+  /**
+   * Mark invitation as used
+   * @param {string} token - Invitation token
+   * @returns {Promise<void>}
+   */
+  async markInvitationAsUsed(token) {
+    await this.db.run(
+      `UPDATE user_invitations
+       SET status = 'used', used_at = CURRENT_TIMESTAMP
+       WHERE invitation_token = ?`,
+      [token]
+    );
+  }
+
+  /**
+   * Get pending invitations
+   * @returns {Promise<Array>} List of pending invitations
+   */
+  async getPendingInvitations() {
+    return await this.db.all(`
+      SELECT i.*, u.email as invited_by_email
+      FROM user_invitations i
+      LEFT JOIN users u ON i.invited_by = u.id
+      WHERE i.status = 'pending' AND datetime(i.expires_at) > datetime('now')
+      ORDER BY i.created_at DESC
+    `);
+  }
+
+  /**
+   * Cancel invitation
+   * @param {number} invitationId - Invitation ID
+   * @returns {Promise<void>}
+   */
+  async cancelInvitation(invitationId) {
+    await this.db.run(
+      `UPDATE user_invitations
+       SET status = 'cancelled'
+       WHERE id = ?`,
+      [invitationId]
+    );
   }
 }
 

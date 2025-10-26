@@ -1,5 +1,6 @@
 const databaseService = require('../services/database.service');
 const { validateEmail, extractNameFromEmail } = require('../utils/validators');
+const { validatePasswordStrength } = require('../utils/password');
 const jwt = require('jsonwebtoken');
 
 /**
@@ -101,8 +102,13 @@ class AuthController {
         });
       }
 
-      if (password.length < 6) {
-        return res.status(400).json({ error: 'Parola trebuie să aibă minimum 6 caractere' });
+      // Validate password strength
+      const passwordValidation = validatePasswordStrength(password);
+      if (!passwordValidation.isValid) {
+        return res.status(400).json({
+          error: 'Parola nu îndeplinește cerințele de securitate',
+          details: passwordValidation.feedback.join('. ')
+        });
       }
 
       // Extract expected employee name from email
