@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const invitationsController = require('../controllers/invitations.controller');
-const { authenticate, requireAdmin } = require('../middleware/auth');
+const { isAuthenticated, isAdmin } = require('../middleware/auth');
 
 /**
  * @swagger
@@ -41,7 +41,7 @@ const { authenticate, requireAdmin } = require('../middleware/auth');
  *       403:
  *         description: Not authorized (admin only)
  */
-router.post('/send', authenticate, requireAdmin, invitationsController.sendInvitation);
+router.post('/send', isAuthenticated, isAdmin, invitationsController.sendInvitation);
 
 /**
  * @swagger
@@ -105,7 +105,7 @@ router.post('/accept', invitationsController.acceptInvitation);
  *       403:
  *         description: Not authorized (admin only)
  */
-router.get('/pending', authenticate, requireAdmin, invitationsController.getPendingInvitations);
+router.get('/pending', isAuthenticated, isAdmin, invitationsController.getPendingInvitations);
 
 /**
  * @swagger
@@ -129,6 +129,6 @@ router.get('/pending', authenticate, requireAdmin, invitationsController.getPend
  *       403:
  *         description: Not authorized (admin only)
  */
-router.delete('/:id', authenticate, requireAdmin, invitationsController.cancelInvitation);
+router.delete('/:id', isAuthenticated, isAdmin, invitationsController.cancelInvitation);
 
 module.exports = router;

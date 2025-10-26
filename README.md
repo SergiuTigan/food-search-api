@@ -526,7 +526,7 @@ HTTP Status Codes:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `PORT` | Server port | `3000` |
+| `PORT` | Server port (use 3000 for dev, 9876 for production) | `3000` |
 | `NODE_ENV` | Environment mode | `development` |
 | `SESSION_SECRET` | Session encryption key | `food-search-secret-key-2024` |
 | `DATABASE_PATH` | SQLite database file path | `./food-search.db` |
@@ -542,14 +542,18 @@ HTTP Status Codes:
 | `ADMIN_PASSWORD` | Default admin account password (optional) | - |
 | `FRONTEND_URL` | Frontend application URL for invitation links | `http://localhost:4200` |
 | `ALLOWED_EMAIL_DOMAINS` | Comma-separated allowed domains | `@devhub.tech,@titans.net,@solidstake.com` |
-| `CORS_ORIGIN` | CORS allowed origin | `http://localhost:3000` |
+| `CORS_ORIGIN` | CORS allowed origins (comma-separated) | `http://localhost:3000,http://localhost:4200,https://food.tigan.dev` |
 
 ## Production Deployment
 
 1. Set environment variables:
    ```bash
    export NODE_ENV=production
+   export PORT=9876
    export SESSION_SECRET=your-secure-secret
+   export CORS_ORIGIN=https://food.tigan.dev
+   export FRONTEND_URL=https://food.tigan.dev
+   export APP_URL=https://food-api.tigan.dev
    ```
 
 2. Use a process manager (PM2):

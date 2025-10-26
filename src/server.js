@@ -48,7 +48,12 @@ async function initializeApp() {
 // CORS - Allow multiple origins
 const allowedOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
-  : ['http://localhost:3000', 'http://localhost:4200'];
+  : [
+      'http://localhost:3000',
+      'http://localhost:4200',
+      'https://food.tigan.dev',
+      'http://food.tigan.dev'
+    ];
 
 app.use(cors({
   origin: function (origin, callback) {
@@ -58,10 +63,16 @@ app.use(cors({
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
+      console.log(`⚠️  CORS blocked origin: ${origin}`);
+      console.log(`   Allowed origins: ${allowedOrigins.join(', ')}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 600 // Cache preflight requests for 10 minutes
 }));
 
 // Body parsing
