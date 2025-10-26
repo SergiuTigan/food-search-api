@@ -26,8 +26,21 @@ class EmailService {
    * @returns {Promise<boolean>} True if email is configured correctly
    */
   async testConfig() {
+    if (!this.isConfigured()) {
+      return false;
+    }
+
     try {
-      await this.transporter.verify();
+      // Add a 5-second timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Connection timeout')), 5000)
+      );
+
+      await Promise.race([
+        this.transporter.verify(),
+        timeoutPromise
+      ]);
+
       console.log('✓ Email server is ready to send messages');
       return true;
     } catch (error) {

@@ -41,7 +41,7 @@ const { isAuthenticated, isAdmin } = require('../middleware/auth');
  *       403:
  *         description: Not authorized (admin only)
  */
-router.post('/send', isAuthenticated, isAdmin, invitationsController.sendInvitation);
+router.post('/send', isAuthenticated, isAdmin, invitationsController.sendInvitation.bind(invitationsController));
 
 /**
  * @swagger
@@ -61,7 +61,7 @@ router.post('/send', isAuthenticated, isAdmin, invitationsController.sendInvitat
  *       400:
  *         description: Invalid or expired token
  */
-router.get('/validate/:token', invitationsController.validateInvitation);
+router.get('/validate/:token', invitationsController.validateInvitation.bind(invitationsController));
 
 /**
  * @swagger
@@ -87,7 +87,7 @@ router.get('/validate/:token', invitationsController.validateInvitation);
  *       400:
  *         description: Invalid token or weak password
  */
-router.post('/accept', invitationsController.acceptInvitation);
+router.post('/accept', invitationsController.acceptInvitation.bind(invitationsController));
 
 /**
  * @swagger
@@ -105,7 +105,7 @@ router.post('/accept', invitationsController.acceptInvitation);
  *       403:
  *         description: Not authorized (admin only)
  */
-router.get('/pending', isAuthenticated, isAdmin, invitationsController.getPendingInvitations);
+router.get('/pending', isAuthenticated, isAdmin, invitationsController.getPendingInvitations.bind(invitationsController));
 
 /**
  * @swagger
@@ -129,6 +129,6 @@ router.get('/pending', isAuthenticated, isAdmin, invitationsController.getPendin
  *       403:
  *         description: Not authorized (admin only)
  */
-router.delete('/:id', isAuthenticated, isAdmin, invitationsController.cancelInvitation);
+router.delete('/:id', isAuthenticated, isAdmin, invitationsController.cancelInvitation.bind(invitationsController));
 
 module.exports = router;
