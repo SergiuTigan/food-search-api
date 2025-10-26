@@ -38,10 +38,15 @@ class UsersController {
         return res.status(400).json({ error: 'Numele nu există în meniul curent' });
       }
 
-      await databaseService.updateUserEmployeeName(req.session.user.id, employee_name);
+      // Get user ID from either JWT or session
+      const userId = req.user.id;
 
-      // Update session
-      req.session.user.employee_name = employee_name;
+      await databaseService.updateUserEmployeeName(userId, employee_name);
+
+      // Update session if exists (for backward compatibility)
+      if (req.session && req.session.user) {
+        req.session.user.employee_name = employee_name;
+      }
 
       res.json({ success: true, message: 'Nume asignat cu succes' });
     } catch (error) {
