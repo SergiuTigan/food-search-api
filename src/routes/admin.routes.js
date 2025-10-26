@@ -101,4 +101,103 @@ router.post('/weeks/:weekStartDate/grant-unlock/:userId', isAdmin, adminControll
  */
 router.post('/weeks/:weekStartDate/revoke-unlock/:userId', isAdmin, adminController.revokeUserUnlock.bind(adminController));
 
+/**
+ * @swagger
+ * /api/admin/test-email:
+ *   post:
+ *     summary: Test email configuration (Admin only)
+ *     tags: [Admin]
+ *     description: Send a test email to verify SMTP configuration
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - to
+ *             properties:
+ *               to:
+ *                 type: string
+ *                 format: email
+ *                 description: Recipient email address
+ *                 example: test@devhub.tech
+ *     responses:
+ *       200:
+ *         description: Test email sent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Email not configured or invalid request
+ *       403:
+ *         description: Admin access required
+ *       500:
+ *         description: Failed to send email
+ */
+router.post('/test-email', isAdmin, adminController.testEmail.bind(adminController));
+
+/**
+ * @swagger
+ * /api/admin/notify-users:
+ *   post:
+ *     summary: Notify all users about new meal options (Admin only)
+ *     tags: [Admin]
+ *     description: Send email notifications to all users about new meal options
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - weekStartDate
+ *             properties:
+ *               weekStartDate:
+ *                 type: string
+ *                 format: date
+ *                 description: Week start date for meal options
+ *                 example: 2024-11-25
+ *               message:
+ *                 type: string
+ *                 description: Optional custom message
+ *     responses:
+ *       200:
+ *         description: Notifications sent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 sent:
+ *                   type: number
+ *                 failed:
+ *                   type: number
+ *                 errors:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *       400:
+ *         description: Email not configured or invalid request
+ *       403:
+ *         description: Admin access required
+ *       500:
+ *         description: Failed to send notifications
+ */
+router.post('/notify-users', isAdmin, adminController.notifyUsers.bind(adminController));
+
 module.exports = router;

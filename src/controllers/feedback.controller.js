@@ -26,10 +26,11 @@ class FeedbackController {
       console.log(`From: ${user.email}`);
       console.log(`Subject: ${subject}`);
 
-      // Send feedback email to sergiu.tigan@devhub.tech
+      // Send feedback email to sergiu.tigan@devhub.tech from dobby@devhub.tech
       const feedbackEmail = {
         to: 'sergiu.tigan@devhub.tech',
-        subject: `[Dobby Feedback] ${subject}`,
+        from: 'dobby@devhub.tech',
+        subject: `Feedback from ${user.employee_name || user.email} - ${subject}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #7c3aed;">New Feedback from Dobby App</h2>

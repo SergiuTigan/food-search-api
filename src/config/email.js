@@ -5,17 +5,19 @@ const nodemailer = require('nodemailer');
  */
 class EmailService {
   constructor() {
+    const emailPort = parseInt(process.env.EMAIL_PORT || '587');
+
     this.transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.EMAIL_PORT || '587'),
-      secure: false,
+      host: process.env.EMAIL_HOST || 'dobby.devhub.tech',
+      port: emailPort,
+      secure: emailPort === 465, // true for 465 (SSL/TLS), false for 587 (will use STARTTLS)
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASSWORD,
       },
     });
 
-    this.fromAddress = process.env.EMAIL_FROM || 'Food Search <noreply@devhub.tech>';
+    this.fromAddress = process.env.EMAIL_FROM || 'Dobby Food Search <noreply@dobby.devhub.tech>';
     this.appUrl = process.env.APP_URL || 'http://localhost:3000';
   }
 
@@ -42,13 +44,15 @@ class EmailService {
     return !!(
       process.env.EMAIL_USER &&
       process.env.EMAIL_PASSWORD &&
-      process.env.EMAIL_USER !== 'your-email@gmail.com'
+      process.env.EMAIL_USER !== 'your-email@gmail.com' &&
+      process.env.EMAIL_PASSWORD !== 'your-app-password' &&
+      process.env.EMAIL_PASSWORD !== 'your-cpanel-password-here'
     );
   }
 
   /**
    * Send a generic email
-   * @param {Object} options - Email options (to, subject, html, text)
+   * @param {Object} options - Email options (to, from, subject, html, text)
    * @returns {Promise<Object>} Result object
    */
   async sendEmail(options) {
@@ -59,7 +63,7 @@ class EmailService {
 
     try {
       const mailOptions = {
-        from: this.fromAddress,
+        from: options.from || this.fromAddress, // Allow custom FROM address
         to: options.to,
         subject: options.subject,
         html: options.html,
