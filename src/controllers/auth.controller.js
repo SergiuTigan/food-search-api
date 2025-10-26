@@ -1,5 +1,6 @@
 const databaseService = require('../services/database.service');
 const { validateEmail, extractNameFromEmail } = require('../utils/validators');
+const jwt = require('jsonwebtoken');
 
 /**
  * Authentication Controller
@@ -44,22 +45,32 @@ class AuthController {
         }
       }
 
-      // Set session - convert is_admin to boolean
-      req.session.user = {
+      // Generate JWT token
+      const tokenPayload = {
         id: user.id,
         email: user.email,
         is_admin: Boolean(user.is_admin),
         employee_name: employeeName
       };
 
+      const token = jwt.sign(
+        tokenPayload,
+        process.env.JWT_SECRET || 'food-search-jwt-secret-2024-change-this-in-production',
+        { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+      );
+
+      // Also set session for backward compatibility
+      req.session.user = tokenPayload;
+
       console.log('✓ User logged in:', {
         email: user.email,
         is_admin: Boolean(user.is_admin),
-        session_id: req.sessionID
+        token_generated: true
       });
 
       res.json({
         success: true,
+        token,
         user: {
           email: user.email,
           is_admin: Boolean(user.is_admin),
@@ -164,7 +175,7 @@ class AuthController {
    */
   async me(req, res) {
     try {
-      const user = await databaseService.getUserById(req.session.user.id);
+      const user = await databaseService.getUserById(req.user.id);
       res.json({
         user: {
           id: user.id,
