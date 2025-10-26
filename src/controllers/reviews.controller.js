@@ -27,7 +27,7 @@ class ReviewsController {
       }
 
       const review = await databaseService.saveMealReview(
-        req.session.user.id,
+        req.user.id,
         mealName,
         reviewText || '',
         rating || null,
@@ -55,7 +55,7 @@ class ReviewsController {
       }
 
       const review = await databaseService.getMealReview(
-        req.session.user.id,
+        req.user.id,
         mealName,
         weekStartDate,
         dayOfWeek
@@ -120,7 +120,7 @@ class ReviewsController {
    */
   async getMyReviews(req, res) {
     try {
-      const reviews = await databaseService.getUserReviews(req.session.user.id);
+      const reviews = await databaseService.getUserReviews(req.user.id);
       res.json({ reviews });
     } catch (error) {
       console.error('Get user reviews error:', error);
@@ -142,7 +142,7 @@ class ReviewsController {
 
       const reviews = await databaseService.getPrioritizedMealReviews(
         mealName,
-        req.session.user.id
+        req.user.id
       );
 
       res.json({ reviews });

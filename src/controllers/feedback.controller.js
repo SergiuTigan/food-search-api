@@ -12,7 +12,7 @@ class FeedbackController {
   async submitFeedback(req, res) {
     try {
       const { subject, message } = req.body;
-      const user = req.session.user;
+      const user = req.user;
 
       if (!subject || !message) {
         return res.status(400).json({ error: 'Subject and message are required' });

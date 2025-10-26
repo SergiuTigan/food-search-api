@@ -22,7 +22,7 @@ class MealSelectionsController {
       }
 
       // Check if week is locked for this user (admin lock)
-      const isWeekLocked = await databaseService.isWeekLockedForUser(week_start_date, req.session.user.id);
+      const isWeekLocked = await databaseService.isWeekLockedForUser(week_start_date, req.user.id);
       if (isWeekLocked) {
         return res.status(403).json({
           error: 'Săptămâna este blocată și nu mai pot fi făcute modificări',
@@ -31,7 +31,7 @@ class MealSelectionsController {
       }
 
       // Check if user has self-locked their selection
-      const isUserLocked = await databaseService.isUserSelectionLocked(req.session.user.id, week_start_date);
+      const isUserLocked = await databaseService.isUserSelectionLocked(req.user.id, week_start_date);
       if (isUserLocked) {
         return res.status(403).json({
           error: 'Selecția ta este blocată. Deblochează-o mai întâi pentru a face modificări',
@@ -40,7 +40,7 @@ class MealSelectionsController {
         });
       }
 
-      await databaseService.saveMealSelection(req.session.user.id, week_start_date, {
+      await databaseService.saveMealSelection(req.user.id, week_start_date, {
         monday, tuesday, wednesday, thursday, friday
       });
 
@@ -63,10 +63,10 @@ class MealSelectionsController {
         return res.json({ selection: null, message: 'No meal options available' });
       }
 
-      const selection = await databaseService.getMealSelection(req.session.user.id, weekStartDate);
-      const isWeekLocked = await databaseService.isWeekLockedForUser(weekStartDate, req.session.user.id);
-      const isUserLocked = await databaseService.isUserSelectionLocked(req.session.user.id, weekStartDate);
-      const hasPendingRequest = await databaseService.hasPendingUnlockRequest(req.session.user.id, weekStartDate);
+      const selection = await databaseService.getMealSelection(req.user.id, weekStartDate);
+      const isWeekLocked = await databaseService.isWeekLockedForUser(weekStartDate, req.user.id);
+      const isUserLocked = await databaseService.isUserSelectionLocked(req.user.id, weekStartDate);
+      const hasPendingRequest = await databaseService.hasPendingUnlockRequest(req.user.id, weekStartDate);
 
       res.json({
         selection,
@@ -87,7 +87,7 @@ class MealSelectionsController {
    */
   async getMealHistory(req, res) {
     try {
-      const history = await databaseService.getUserMealHistory(req.session.user.id);
+      const history = await databaseService.getUserMealHistory(req.user.id);
       res.json({ history });
     } catch (error) {
       console.error('Get meal history error:', error);
@@ -802,12 +802,12 @@ class MealSelectionsController {
       }
 
       // Check if user has a selection for this week
-      const selection = await databaseService.getMealSelection(req.session.user.id, week_start_date);
+      const selection = await databaseService.getMealSelection(req.user.id, week_start_date);
       if (!selection) {
         return res.status(400).json({ error: 'Nu există selecție pentru această săptămână' });
       }
 
-      await databaseService.lockUserSelection(req.session.user.id, week_start_date);
+      await databaseService.lockUserSelection(req.user.id, week_start_date);
 
       res.json({ success: true, message: 'Selecția ta a fost blocată cu succes!' });
     } catch (error) {
@@ -829,7 +829,7 @@ class MealSelectionsController {
       }
 
       // Check if week is admin-locked - user cannot request unlock if week is admin-locked
-      const isWeekLocked = await databaseService.isWeekLockedForUser(week_start_date, req.session.user.id);
+      const isWeekLocked = await databaseService.isWeekLockedForUser(week_start_date, req.user.id);
       if (isWeekLocked) {
         return res.status(403).json({
           error: 'Săptămâna este blocată de administrator. Nu poți solicita deblocarea.',
@@ -838,7 +838,7 @@ class MealSelectionsController {
       }
 
       // Create unlock request instead of unlocking directly
-      const request = await databaseService.createUnlockRequest(req.session.user.id, week_start_date);
+      const request = await databaseService.createUnlockRequest(req.user.id, week_start_date);
 
       res.json({
         success: true,
@@ -877,7 +877,7 @@ class MealSelectionsController {
         return res.status(400).json({ error: 'Invalid request ID' });
       }
 
-      await databaseService.approveUnlockRequest(requestId, req.session.user.id);
+      await databaseService.approveUnlockRequest(requestId, req.user.id);
 
       res.json({
         success: true,
@@ -901,7 +901,7 @@ class MealSelectionsController {
         return res.status(400).json({ error: 'Invalid request ID' });
       }
 
-      await databaseService.rejectUnlockRequest(requestId, req.session.user.id);
+      await databaseService.rejectUnlockRequest(requestId, req.user.id);
 
       res.json({
         success: true,
