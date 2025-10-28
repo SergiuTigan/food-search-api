@@ -1039,6 +1039,19 @@ class DatabaseService {
    * @returns {Promise<boolean>} True if locked for this user
    */
   async isWeekLockedForUser(weekStartDate, userId) {
+    // Check if current date is before week start date
+    // If yes, week should be unlocked (people can make selections for future weeks)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset to start of day for comparison
+
+    const weekStart = new Date(weekStartDate);
+    weekStart.setHours(0, 0, 0, 0);
+
+    // If we're before the week starts, it's always unlocked
+    if (today < weekStart) {
+      return false;
+    }
+
     const settings = await this.getWeekSettings(weekStartDate);
 
     if (!settings || !settings.is_locked) {
