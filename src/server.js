@@ -17,6 +17,8 @@ const reviewsRoutes = require('./routes/reviews.routes');
 const searchRoutes = require('./routes/search.routes');
 const adminRoutes = require('./routes/admin.routes');
 const invitationsRoutes = require('./routes/invitations.routes');
+const mealTransfersRoutes = require('./routes/mealTransfers.routes');
+const menusRoutes = require('./routes/menus.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -144,7 +146,9 @@ app.get('/', (req, res) => {
       search: '/api/search',
       admin: '/api/admin',
       invitations: '/api/invitations',
-      feedback: '/api/feedback'
+      feedback: '/api/feedback',
+      mealTransfers: '/api/meal-transfers',
+      menus: '/api/menus'
     }
   });
 });
@@ -161,6 +165,8 @@ app.use('/api/search', searchRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/invitations', invitationsRoutes);
 app.use('/api/feedback', require('./routes/feedback.routes'));
+app.use('/api/meal-transfers', mealTransfersRoutes);
+app.use('/api/menus', menusRoutes);
 
 /**
  * Error Handling

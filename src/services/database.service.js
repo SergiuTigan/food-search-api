@@ -203,6 +203,41 @@ class DatabaseService {
         console.error('Error creating invitation token index:', error);
       }
     }
+
+    // Meal transfers table (when users pass their meal to colleagues)
+    await this.db.run(`
+      CREATE TABLE IF NOT EXISTS meal_transfers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        from_user_id INTEGER NOT NULL,
+        week_start_date TEXT NOT NULL,
+        day_of_week TEXT NOT NULL,
+        meal_details TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        claimed_by_user_id INTEGER,
+        claimed_at TIMESTAMP,
+        status TEXT DEFAULT 'available',
+        UNIQUE(from_user_id, week_start_date, day_of_week),
+        CHECK(status IN ('available', 'claimed')),
+        FOREIGN KEY (from_user_id) REFERENCES users(id),
+        FOREIGN KEY (claimed_by_user_id) REFERENCES users(id)
+      )
+    `);
+
+    // Menu copies table (track when users copy another user's complete menu for a day)
+    await this.db.run(`
+      CREATE TABLE IF NOT EXISTS menu_copies (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        copied_from_user_id INTEGER NOT NULL,
+        week_start_date TEXT NOT NULL,
+        day_of_week TEXT NOT NULL,
+        menu_details TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, week_start_date, day_of_week),
+        FOREIGN KEY (user_id) REFERENCES users(id),
+        FOREIGN KEY (copied_from_user_id) REFERENCES users(id)
+      )
+    `);
   }
 
   /**
@@ -1285,6 +1320,159 @@ class DatabaseService {
        SET status = 'cancelled'
        WHERE id = ?`,
       [invitationId]
+    );
+  }
+
+  // ===== MEAL TRANSFER METHODS =====
+
+  /**
+   * Create a meal transfer (user passes meal to colleagues)
+   */
+  async createMealTransfer(fromUserId, weekStartDate, dayOfWeek, mealDetails) {
+    await this.db.run(
+      `INSERT INTO meal_transfers (from_user_id, week_start_date, day_of_week, meal_details, status)
+       VALUES (?, ?, ?, ?, 'available')
+       ON CONFLICT (from_user_id, week_start_date, day_of_week)
+       DO UPDATE SET
+         meal_details = excluded.meal_details,
+         status = 'available',
+         created_at = CURRENT_TIMESTAMP,
+         claimed_by_user_id = NULL,
+         claimed_at = NULL`,
+      [fromUserId, weekStartDate, dayOfWeek, mealDetails]
+    );
+  }
+
+  /**
+   * Get available meal transfers for a week
+   */
+  async getAvailableMealTransfers(weekStartDate) {
+    return await this.db.all(
+      `SELECT mt.*, u.email, u.employee_name
+       FROM meal_transfers mt
+       JOIN users u ON mt.from_user_id = u.id
+       WHERE mt.week_start_date = ?
+         AND mt.status = 'available'
+       ORDER BY mt.created_at DESC`,
+      [weekStartDate]
+    );
+  }
+
+  /**
+   * Claim a meal transfer
+   */
+  async claimMealTransfer(transferId, claimedByUserId) {
+    await this.db.run(
+      `UPDATE meal_transfers
+       SET claimed_by_user_id = ?,
+           claimed_at = CURRENT_TIMESTAMP,
+           status = 'claimed'
+       WHERE id = ? AND status = 'available'`,
+      [claimedByUserId, transferId]
+    );
+  }
+
+  /**
+   * Cancel a meal transfer
+   */
+  async cancelMealTransfer(transferId, userId) {
+    await this.db.run(
+      `DELETE FROM meal_transfers
+       WHERE id = ? AND from_user_id = ?`,
+      [transferId, userId]
+    );
+  }
+
+  /**
+   * Get user's meal transfer for a specific day
+   */
+  async getUserMealTransfer(userId, weekStartDate, dayOfWeek) {
+    return await this.db.get(
+      `SELECT * FROM meal_transfers
+       WHERE from_user_id = ?
+         AND week_start_date = ?
+         AND day_of_week = ?`,
+      [userId, weekStartDate, dayOfWeek]
+    );
+  }
+
+  // ===== MENU COPY METHODS =====
+
+  /**
+   * Get all user menus for a specific week
+   */
+  async getAllUserMenusForWeek(weekStartDate) {
+    return await this.db.all(
+      `SELECT ms.*, u.id as user_id, u.email, u.employee_name
+       FROM meal_selections ms
+       JOIN users u ON ms.user_id = u.id
+       WHERE ms.week_start_date = ?
+         AND u.is_active = 1
+       ORDER BY u.employee_name`,
+      [weekStartDate]
+    );
+  }
+
+  /**
+   * Copy a user's menu for a specific day
+   */
+  async copyUserMenu(userId, copiedFromUserId, weekStartDate, dayOfWeek, menuDetails) {
+    // First, insert or update the menu copy record
+    await this.db.run(
+      `INSERT INTO menu_copies (user_id, copied_from_user_id, week_start_date, day_of_week, menu_details)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT (user_id, week_start_date, day_of_week)
+       DO UPDATE SET
+         copied_from_user_id = excluded.copied_from_user_id,
+         menu_details = excluded.menu_details,
+         created_at = CURRENT_TIMESTAMP`,
+      [userId, copiedFromUserId, weekStartDate, dayOfWeek, menuDetails]
+    );
+
+    // Then, update the user's meal selection for that day
+    const dayCol = dayOfWeek.toLowerCase();
+    const updateColumn = `${dayCol} = ?`;
+
+    await this.db.run(
+      `INSERT INTO meal_selections (user_id, week_start_date, ${dayCol}, updated_at)
+       VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+       ON CONFLICT (user_id, week_start_date)
+       DO UPDATE SET ${updateColumn}, updated_at = CURRENT_TIMESTAMP`,
+      [userId, weekStartDate, menuDetails, menuDetails]
+    );
+  }
+
+  /**
+   * Get all menu copies for a specific day
+   */
+  async getMenuCopies(weekStartDate, dayOfWeek) {
+    return await this.db.all(
+      `SELECT mc.*,
+              u.email, u.employee_name,
+              uf.email as copied_from_email, uf.employee_name as copied_from_name
+       FROM menu_copies mc
+       JOIN users u ON mc.user_id = u.id
+       JOIN users uf ON mc.copied_from_user_id = uf.id
+       WHERE mc.week_start_date = ?
+         AND mc.day_of_week = ?
+       ORDER BY mc.created_at DESC`,
+      [weekStartDate, dayOfWeek]
+    );
+  }
+
+  /**
+   * Get users who copied from a specific user
+   */
+  async getMenuCopiesForUser(copiedFromUserId, weekStartDate, dayOfWeek) {
+    return await this.db.all(
+      `SELECT mc.*, u.email, u.employee_name
+       FROM menu_copies mc
+       JOIN users u ON mc.user_id = u.id
+       WHERE mc.copied_from_user_id = ?
+         AND mc.week_start_date = ?
+         AND mc.day_of_week = ?
+       ORDER BY mc.created_at DESC`,
+      [copiedFromUserId, weekStartDate, dayOfWeek]
     );
   }
 }
