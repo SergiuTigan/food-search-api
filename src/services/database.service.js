@@ -1417,6 +1417,33 @@ class DatabaseService {
     );
   }
 
+  /**
+   * Get all passed meals for a user in a specific week
+   */
+  async getUserPassedMeals(userId, weekStartDate) {
+    const transfers = await this.db.all(
+      `SELECT day_of_week, status FROM meal_transfers
+       WHERE from_user_id = ?
+         AND week_start_date = ?`,
+      [userId, weekStartDate]
+    );
+
+    // Convert to object format { monday: true, tuesday: false, etc. }
+    const passedMeals = {
+      monday: false,
+      tuesday: false,
+      wednesday: false,
+      thursday: false,
+      friday: false
+    };
+
+    transfers.forEach(transfer => {
+      passedMeals[transfer.day_of_week.toLowerCase()] = true;
+    });
+
+    return passedMeals;
+  }
+
   // ===== MENU COPY METHODS =====
 
   /**

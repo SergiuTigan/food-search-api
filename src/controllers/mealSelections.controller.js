@@ -67,13 +67,15 @@ class MealSelectionsController {
       const isWeekLocked = await databaseService.isWeekLockedForUser(weekStartDate, req.user.id);
       const isUserLocked = await databaseService.isUserSelectionLocked(req.user.id, weekStartDate);
       const hasPendingRequest = await databaseService.hasPendingUnlockRequest(req.user.id, weekStartDate);
+      const passedMeals = await databaseService.getUserPassedMeals(req.user.id, weekStartDate);
 
       res.json({
         selection,
         week_start_date: weekStartDate,
         is_locked: isWeekLocked,
         is_user_locked: isUserLocked,
-        has_pending_unlock_request: hasPendingRequest
+        has_pending_unlock_request: hasPendingRequest,
+        passed_meals: passedMeals
       });
     } catch (error) {
       console.error('Get meal selection error:', error);
