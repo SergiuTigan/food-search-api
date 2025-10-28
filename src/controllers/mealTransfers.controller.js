@@ -14,15 +14,23 @@ class MealTransfersController {
       const { weekStartDate, dayOfWeek, mealDetails } = req.body;
       const userId = req.user.id;
 
+      console.log('=== CREATE MEAL TRANSFER ===');
+      console.log('User ID:', userId);
+      console.log('Week Start Date:', weekStartDate);
+      console.log('Day of Week:', dayOfWeek);
+      console.log('Meal Details:', mealDetails);
+
       if (!weekStartDate || !dayOfWeek || !mealDetails) {
+        console.log('❌ Missing required fields');
         return res.status(400).json({ error: 'Toate câmpurile sunt obligatorii' });
       }
 
       await databaseService.createMealTransfer(userId, weekStartDate, dayOfWeek, mealDetails);
+      console.log('✅ Meal transfer created successfully');
       res.json({ success: true, message: 'Masa ta a fost pusă la dispoziție pentru colegi' });
     } catch (error) {
-      console.error('Create meal transfer error:', error);
-      res.status(500).json({ error: 'Server error' });
+      console.error('❌ Create meal transfer error:', error);
+      res.status(500).json({ error: 'Server error', details: error.message });
     }
   }
 

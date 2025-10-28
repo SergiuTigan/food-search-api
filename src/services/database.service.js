@@ -1342,18 +1342,26 @@ class DatabaseService {
    * Create a meal transfer (user passes meal to colleagues)
    */
   async createMealTransfer(fromUserId, weekStartDate, dayOfWeek, mealDetails) {
-    await this.db.run(
-      `INSERT INTO meal_transfers (from_user_id, week_start_date, day_of_week, meal_details, status)
-       VALUES (?, ?, ?, ?, 'available')
-       ON CONFLICT (from_user_id, week_start_date, day_of_week)
-       DO UPDATE SET
-         meal_details = excluded.meal_details,
-         status = 'available',
-         created_at = CURRENT_TIMESTAMP,
-         claimed_by_user_id = NULL,
-         claimed_at = NULL`,
-      [fromUserId, weekStartDate, dayOfWeek, mealDetails]
-    );
+    console.log('📝 DB: Inserting meal transfer:', { fromUserId, weekStartDate, dayOfWeek, mealDetails });
+    try {
+      const result = await this.db.run(
+        `INSERT INTO meal_transfers (from_user_id, week_start_date, day_of_week, meal_details, status)
+         VALUES (?, ?, ?, ?, 'available')
+         ON CONFLICT (from_user_id, week_start_date, day_of_week)
+         DO UPDATE SET
+           meal_details = excluded.meal_details,
+           status = 'available',
+           created_at = CURRENT_TIMESTAMP,
+           claimed_by_user_id = NULL,
+           claimed_at = NULL`,
+        [fromUserId, weekStartDate, dayOfWeek, mealDetails]
+      );
+      console.log('✅ DB: Meal transfer inserted/updated, changes:', result.changes);
+      return result;
+    } catch (error) {
+      console.error('❌ DB: Error inserting meal transfer:', error);
+      throw error;
+    }
   }
 
   /**
