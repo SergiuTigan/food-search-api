@@ -1419,12 +1419,15 @@ class DatabaseService {
 
   /**
    * Get all passed meals for a user in a specific week
+   * Returns meals that are available (not yet claimed) or already claimed
+   * These meals should be unavailable to the original user
    */
   async getUserPassedMeals(userId, weekStartDate) {
     const transfers = await this.db.all(
       `SELECT day_of_week, status FROM meal_transfers
        WHERE from_user_id = ?
-         AND week_start_date = ?`,
+         AND week_start_date = ?
+         AND status IN ('available', 'claimed')`,
       [userId, weekStartDate]
     );
 
