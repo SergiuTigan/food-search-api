@@ -12,7 +12,7 @@ Dacă primești eroarea "Admin access required" când încerci să faci upload, 
 # Pasul 1: Login și salvează cookie-urile
 curl -X POST http://localhost:3000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"sergiu.tigan@devhub.tech","password":"marian93A@"}' \
+  -d '{"email":"sergiu.tigan@devhub.tech","password":"YOUR_PASSWORD_HERE"}' \
   -c cookies.txt \
   -v
 
@@ -31,7 +31,7 @@ curl -X POST http://localhost:3000/api/meal-options/upload \
      ```json
      {
        "email": "sergiu.tigan@devhub.tech",
-       "password": "marian93A@"
+       "password": "YOUR_PASSWORD_HERE"
      }
      ```
    - Cookie-ul va fi salvat automat de Postman
@@ -54,7 +54,7 @@ const loginResponse = await fetch('http://localhost:3000/api/auth/login', {
   credentials: 'include', // IMPORTANT! Trimite și primește cookies
   body: JSON.stringify({
     email: 'sergiu.tigan@devhub.tech',
-    password: 'marian93A@'
+    password: 'YOUR_PASSWORD_HERE'
   })
 });
 
@@ -106,7 +106,7 @@ axios.defaults.withCredentials = true;
 // Login
 await axios.post('http://localhost:3000/api/auth/login', {
   email: 'sergiu.tigan@devhub.tech',
-  password: 'marian93A@'
+  password: 'YOUR_PASSWORD_HERE'
 });
 
 // Upload
@@ -176,7 +176,7 @@ cd /Users/sergiu/Projects/food-search-api
 # 1. Login
 curl -X POST http://localhost:3000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"sergiu.tigan@devhub.tech","password":"marian93A@"}' \
+  -d '{"email":"sergiu.tigan@devhub.tech","password":"YOUR_PASSWORD_HERE"}' \
   -c cookies.txt
 
 # 2. Verifică autentificarea

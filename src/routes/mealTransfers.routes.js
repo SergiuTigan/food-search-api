@@ -18,6 +18,13 @@ router.post('/', isAuthenticated, mealTransfersController.createMealTransfer.bin
 router.get('/check', isAuthenticated, mealTransfersController.checkMealTransfer.bind(mealTransfersController));
 
 /**
+ * @route GET /api/meal-transfers/claimed
+ * @desc Get meals claimed by the current user
+ * @access Private
+ */
+router.get('/claimed', isAuthenticated, mealTransfersController.getClaimedMealTransfers.bind(mealTransfersController));
+
+/**
  * @route GET /api/meal-transfers
  * @desc Get available meal transfers for a week
  * @access Private
@@ -30,6 +37,13 @@ router.get('/', isAuthenticated, mealTransfersController.getAvailableMealTransfe
  * @access Private
  */
 router.post('/:transferId/claim', isAuthenticated, mealTransfersController.claimMealTransfer.bind(mealTransfersController));
+
+/**
+ * @route POST /api/meal-transfers/:transferId/unclaim
+ * @desc Unclaim a meal transfer (re-pass it back to available)
+ * @access Private
+ */
+router.post('/:transferId/unclaim', isAuthenticated, mealTransfersController.unclaimMealTransfer.bind(mealTransfersController));
 
 /**
  * @route DELETE /api/meal-transfers/:transferId

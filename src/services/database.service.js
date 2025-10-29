@@ -1396,24 +1396,97 @@ class DatabaseService {
    * Claim a meal transfer
    */
   async claimMealTransfer(transferId, claimedByUserId) {
+    // First get the transfer details
+    const transfer = await this.db.get(
+      'SELECT * FROM meal_transfers WHERE id = ? AND status = \'available\'',
+      [transferId]
+    );
+
+    if (!transfer) {
+      throw new Error('Transfer not found or already claimed');
+    }
+
+    // Mark transfer as claimed
     await this.db.run(
       `UPDATE meal_transfers
        SET claimed_by_user_id = ?,
            claimed_at = CURRENT_TIMESTAMP,
            status = 'claimed'
-       WHERE id = ? AND status = 'available'`,
+       WHERE id = ?`,
       [claimedByUserId, transferId]
     );
+
+    // Add meal to the claimer's meal selection for that day
+    const dayColumn = transfer.day_of_week.toLowerCase();
+    const meal = transfer.meal_details;
+    const weekStartDate = transfer.week_start_date;
+
+    // Get existing meal selection or create one
+    const existingSelection = await this.db.get(
+      'SELECT * FROM meal_selections WHERE user_id = ? AND week_start_date = ?',
+      [claimedByUserId, weekStartDate]
+    );
+
+    if (existingSelection) {
+      // Update existing selection
+      await this.db.run(
+        `UPDATE meal_selections SET ${dayColumn} = ? WHERE user_id = ? AND week_start_date = ?`,
+        [meal, claimedByUserId, weekStartDate]
+      );
+    } else {
+      // Create new selection
+      await this.db.run(
+        `INSERT INTO meal_selections (user_id, week_start_date, ${dayColumn})
+         VALUES (?, ?, ?)`,
+        [claimedByUserId, weekStartDate, meal]
+      );
+    }
   }
 
   /**
    * Cancel a meal transfer
    */
   async cancelMealTransfer(transferId, userId) {
-    await this.db.run(
-      `DELETE FROM meal_transfers
-       WHERE id = ? AND from_user_id = ?`,
+    // First get the transfer details
+    const transfer = await this.db.get(
+      'SELECT * FROM meal_transfers WHERE id = ? AND from_user_id = ?',
       [transferId, userId]
+    );
+
+    if (!transfer) {
+      throw new Error('Transfer not found or unauthorized');
+    }
+
+    // Restore meal to the original owner's selection for that day
+    const dayColumn = transfer.day_of_week.toLowerCase();
+    const meal = transfer.meal_details;
+    const weekStartDate = transfer.week_start_date;
+
+    // Get existing meal selection
+    const existingSelection = await this.db.get(
+      'SELECT * FROM meal_selections WHERE user_id = ? AND week_start_date = ?',
+      [userId, weekStartDate]
+    );
+
+    if (existingSelection) {
+      // Update existing selection - restore the meal
+      await this.db.run(
+        `UPDATE meal_selections SET ${dayColumn} = ? WHERE user_id = ? AND week_start_date = ?`,
+        [meal, userId, weekStartDate]
+      );
+    } else {
+      // Create new selection with the restored meal
+      await this.db.run(
+        `INSERT INTO meal_selections (user_id, week_start_date, ${dayColumn})
+         VALUES (?, ?, ?)`,
+        [userId, weekStartDate, meal]
+      );
+    }
+
+    // Delete the transfer record (this makes it disappear from available meals list)
+    await this.db.run(
+      `DELETE FROM meal_transfers WHERE id = ?`,
+      [transferId]
     );
   }
 
@@ -1458,6 +1531,56 @@ class DatabaseService {
     });
 
     return passedMeals;
+  }
+
+  /**
+   * Get meals claimed by a user for a specific week
+   */
+  async getClaimedMealTransfers(userId, weekStartDate) {
+    return await this.db.all(
+      `SELECT mt.*, u.email, u.employee_name as from_employee_name
+       FROM meal_transfers mt
+       JOIN users u ON mt.from_user_id = u.id
+       WHERE mt.claimed_by_user_id = ?
+         AND mt.week_start_date = ?
+         AND mt.status = 'claimed'
+       ORDER BY mt.claimed_at DESC`,
+      [userId, weekStartDate]
+    );
+  }
+
+  /**
+   * Unclaim a meal transfer (re-pass it back to available)
+   */
+  async unclaimMealTransfer(transferId, userId) {
+    // First get the transfer details to verify user is the claimer
+    const transfer = await this.db.get(
+      'SELECT * FROM meal_transfers WHERE id = ? AND claimed_by_user_id = ?',
+      [transferId, userId]
+    );
+
+    if (!transfer) {
+      throw new Error('Transfer not found or unauthorized');
+    }
+
+    // Remove meal from the claimer's selection for that day
+    const dayColumn = transfer.day_of_week.toLowerCase();
+    const weekStartDate = transfer.week_start_date;
+
+    await this.db.run(
+      `UPDATE meal_selections SET ${dayColumn} = NULL WHERE user_id = ? AND week_start_date = ?`,
+      [userId, weekStartDate]
+    );
+
+    // Mark transfer as available again
+    await this.db.run(
+      `UPDATE meal_transfers
+       SET claimed_by_user_id = NULL,
+           claimed_at = NULL,
+           status = 'available'
+       WHERE id = ?`,
+      [transferId]
+    );
   }
 
   // ===== MENU COPY METHODS =====

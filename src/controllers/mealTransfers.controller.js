@@ -109,6 +109,44 @@ class MealTransfersController {
     }
   }
 
+  /**
+   * Get meals claimed by the current user
+   * @route GET /api/meal-transfers/claimed
+   */
+  async getClaimedMealTransfers(req, res) {
+    try {
+      const { weekStartDate } = req.query;
+      const userId = req.user.id;
+
+      if (!weekStartDate) {
+        return res.status(400).json({ error: 'Week start date is required' });
+      }
+
+      const claimedMeals = await databaseService.getClaimedMealTransfers(userId, weekStartDate);
+      res.json({ claimedMeals });
+    } catch (error) {
+      console.error('Get claimed meals error:', error);
+      res.status(500).json({ error: 'Server error' });
+    }
+  }
+
+  /**
+   * Unclaim a meal transfer (re-pass it back to available)
+   * @route POST /api/meal-transfers/:transferId/unclaim
+   */
+  async unclaimMealTransfer(req, res) {
+    try {
+      const { transferId } = req.params;
+      const userId = req.user.id;
+
+      await databaseService.unclaimMealTransfer(transferId, userId);
+      res.json({ success: true, message: 'Masa a fost repusă la dispoziție' });
+    } catch (error) {
+      console.error('Unclaim meal transfer error:', error);
+      res.status(500).json({ error: 'Server error' });
+    }
+  }
+
   // ===== MENU COPY METHODS =====
 
   /**

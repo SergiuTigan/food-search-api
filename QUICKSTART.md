@@ -76,7 +76,7 @@ curl -X POST http://localhost:3000/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "sergiu.tigan@devhub.tech",
-    "password": "marian93A@"
+    "password": "YOUR_PASSWORD_HERE"
   }'
 ```
 
@@ -85,7 +85,7 @@ curl -X POST http://localhost:3000/api/auth/login \
 The system automatically creates an admin account:
 
 - **Email**: `sergiu.tigan@devhub.tech`
-- **Password**: `marian93A@`
+- **Password**: Set via ADMIN_PASSWORD in .env file
 
 **Important**: Change these credentials in production!
 
