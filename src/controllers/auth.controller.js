@@ -35,14 +35,14 @@ class AuthController {
         return res.status(401).json({ error: 'Credențiale invalide' });
       }
 
-      // Auto-match employee name if not set
+      // Auto-set employee name from email if not set
       let employeeName = user.employee_name;
-      if (!employeeName && !user.is_admin) {
-        const matchedEmployee = await databaseService.findMatchingEmployee(email);
-        if (matchedEmployee) {
-          await databaseService.updateUserEmployeeName(user.id, matchedEmployee);
-          employeeName = matchedEmployee;
-          console.log(`Auto-matched ${email} to employee: ${matchedEmployee}`);
+      if (!employeeName) {
+        // Extract name directly from email (e.g., alex.ghetu@devhub.tech -> "Alex Ghetu")
+        employeeName = extractNameFromEmail(email);
+        if (employeeName) {
+          await databaseService.updateUserEmployeeName(user.id, employeeName);
+          console.log(`Auto-set employee name for ${email}: ${employeeName}`);
         }
       }
 
@@ -139,13 +139,13 @@ class AuthController {
         // Create new user
         await databaseService.createUser(email, password, 0);
 
-        // Try to auto-match employee name
-        const matchedEmployee = await databaseService.findMatchingEmployee(email);
-        if (matchedEmployee) {
+        // Auto-set employee name from email
+        const autoEmployeeName = extractNameFromEmail(email);
+        if (autoEmployeeName) {
           const newUser = await databaseService.getUserByEmail(email);
           if (newUser) {
-            await databaseService.updateUserEmployeeName(newUser.id, matchedEmployee);
-            console.log(`Auto-matched new user ${email} to employee: ${matchedEmployee}`);
+            await databaseService.updateUserEmployeeName(newUser.id, autoEmployeeName);
+            console.log(`Auto-set employee name for new user ${email}: ${autoEmployeeName}`);
           }
         }
 
