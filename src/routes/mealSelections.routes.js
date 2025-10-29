@@ -155,59 +155,6 @@ router.get('/all', isAdmin, mealSelectionsController.getAllMealSelections.bind(m
 
 /**
  * @swagger
- * /api/meal-selections/import:
- *   post:
- *     summary: Import meal selections from Excel (Admin only)
- *     tags: [Meal Selections]
- *     description: Import meal selections from an Excel file
- *     security:
- *       - cookieAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             required:
- *               - file
- *             properties:
- *               file:
- *                 type: string
- *                 format: binary
- *               week_start_date:
- *                 type: string
- *                 format: date
- *     responses:
- *       200:
- *         description: Import completed successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 message:
- *                   type: string
- *                 imported:
- *                   type: integer
- *                 failed:
- *                   type: integer
- *                 period:
- *                   type: string
- *                 details:
- *                   type: array
- *                   items:
- *                     type: string
- *       403:
- *         description: Admin access required
- *       500:
- *         description: Server error
- */
-router.post('/import', isAdmin, upload.single('file'), mealSelectionsController.importMealSelections.bind(mealSelectionsController));
-
-/**
- * @swagger
  * /api/meal-selections/statistics:
  *   get:
  *     summary: Get meal selection statistics (Admin only)
