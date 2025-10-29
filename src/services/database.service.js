@@ -238,6 +238,19 @@ class DatabaseService {
         FOREIGN KEY (copied_from_user_id) REFERENCES users(id)
       )
     `);
+
+    // Feedback table
+    await this.db.run(`
+      CREATE TABLE IF NOT EXISTS feedback (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        subject TEXT NOT NULL,
+        message TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        status TEXT DEFAULT 'new',
+        FOREIGN KEY (user_id) REFERENCES users(id)
+      )
+    `);
   }
 
   /**
@@ -1524,6 +1537,71 @@ class DatabaseService {
          AND mc.day_of_week = ?
        ORDER BY mc.created_at DESC`,
       [copiedFromUserId, weekStartDate, dayOfWeek]
+    );
+  }
+
+  // ===== FEEDBACK METHODS =====
+
+  /**
+   * Save user feedback
+   * @param {number} userId - User ID
+   * @param {string} subject - Feedback subject
+   * @param {string} message - Feedback message
+   * @returns {Promise<object>} Created feedback
+   */
+  async saveFeedback(userId, subject, message) {
+    const result = await this.db.run(
+      'INSERT INTO feedback (user_id, subject, message) VALUES (?, ?, ?)',
+      [userId, subject, message]
+    );
+
+    return {
+      id: result.lastID,
+      user_id: userId,
+      subject,
+      message,
+      status: 'new'
+    };
+  }
+
+  /**
+   * Get all feedback
+   * @returns {Promise<Array>} List of feedback with user info
+   */
+  async getAllFeedback() {
+    return await this.db.all(`
+      SELECT f.*, u.email, u.employee_name
+      FROM feedback f
+      JOIN users u ON f.user_id = u.id
+      ORDER BY f.created_at DESC
+    `);
+  }
+
+  /**
+   * Get feedback by ID
+   * @param {number} feedbackId - Feedback ID
+   * @returns {Promise<object|null>} Feedback details
+   */
+  async getFeedbackById(feedbackId) {
+    return await this.db.get(
+      `SELECT f.*, u.email, u.employee_name
+       FROM feedback f
+       JOIN users u ON f.user_id = u.id
+       WHERE f.id = ?`,
+      [feedbackId]
+    );
+  }
+
+  /**
+   * Update feedback status
+   * @param {number} feedbackId - Feedback ID
+   * @param {string} status - New status
+   * @returns {Promise<void>}
+   */
+  async updateFeedbackStatus(feedbackId, status) {
+    await this.db.run(
+      'UPDATE feedback SET status = ? WHERE id = ?',
+      [status, feedbackId]
     );
   }
 }
