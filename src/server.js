@@ -50,15 +50,15 @@ async function initializeApp() {
 /**
  * Middleware Configuration
  */
-// CORS - Allow multiple origins
-const allowedOrigins = process.env.CORS_ORIGIN
-  ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
-  : [
-      'http://localhost:3000',
-      'http://localhost:4200',
-      'https://food.tigan.dev',
-      'http://food.tigan.dev'
-    ];
+// CORS - Allow multiple origins (hardcoded)
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:4200',
+  'http://localhost:9876',
+  'http://food.tigan.dev',
+  'https://food.tigan.dev',
+  'https://food-search-angular.vercel.app'
+];
 
 app.use(cors({
   origin: function (origin, callback) {
